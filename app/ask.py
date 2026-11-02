@@ -11,22 +11,45 @@ or gives a plausible general answer (which differs from the actual course).
 """
 
 import argparse
-
+import time
 from google import genai
 from google.genai import errors
-
+from google.genai import types
 from app.config import MODEL, api_error_message, get_api_key
 
 # A course-specific question. The correct answer is in homework-levels in data/glossary.json
 DEFAULT_QUESTION = "What are the 3 homework levels in the AIE2026 course?"
 
-
+history = []
 def ask(question: str) -> str:
     client = genai.Client(api_key=get_api_key())
-    response = client.models.generate_content(model=MODEL, contents=question)
-
+    start = time.perf_counter()
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=question,
+        #config=types.GenerateContentConfig(temperature=1.8,),
+    )
+    end = time.perf_counter()
+    print(f"Response time: {end - start:.2f} seconds")
+    '''
+    history.append(types.Content(role="user", parts=[types.Part(text=question)]))
+    response = client.models.generate_content(model=MODEL, contents=history)
+    end = time.perf_counter()
+    print(f"Response time: {end - start:.2f} seconds")
+    history.append(types.Content(role="model", parts=[types.Part(text=response.text)]))
     # TODO(Lecture 01 exercise): use response.usage_metadata to
     #   display input and output token counts (you may ask Copilot)
+    '''
+    usage = response.usage_metadata
+    if usage is not None:
+        print(
+            f"[tokens] input={usage.prompt_token_count} "
+            f"output={usage.candidates_token_count}"
+            f"total={usage.total_token_count}"
+            
+        )
+
+
 
     return response.text
 
@@ -40,6 +63,15 @@ def main() -> None:
     print(f"[question] {args.question}\n")
     try:
         print(ask(args.question))
+        '''
+        while True:
+            question = input("\nYou: ")
+
+            if question.lower() in ["exit", "quit"]:
+                break
+
+            print(ask(question))
+            '''
     except errors.APIError as e:
         print(api_error_message(e.code, e.message))
         raise SystemExit(1)
